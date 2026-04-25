@@ -95,6 +95,7 @@ npm run start:dev             # Iniciar en modo watch
 
 ## Convenciones
 
+- Los mensajes de commits siempre deben estar escritos en inglés.
 - Resolvers delgados — lógica de negocio en los servicios
 - `findOneOrFail` en servicios — nunca retornar null, siempre NotFoundException
 - Contraseñas: nunca @Field() en entidades, nunca texto plano en BD
