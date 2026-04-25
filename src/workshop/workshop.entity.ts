@@ -20,38 +20,18 @@ registerEnumType(WorkshopLevel, {
   description: 'Nivel de experiencia requerido para el workshop',
 });
 
-@ObjectType()
-@Entity()
-@Unique(['title', 'conferenceId'])
+// TODO Bloque 2 — Agrega @ObjectType() y @Entity() a la clase
+// También agrega @Unique(['title', 'conferenceId']) para validar unicidad
+// Luego decora cada propiedad con @Field() y @Column() (o @ManyToOne / @JoinColumn)
+//
+// Ver WORKSHOP_GUIDE.md → "Bloque 2 — Entidad Workshop"
 export class Workshop {
-  @Field(() => ID)
-  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
-
-  @Field()
-  @Column()
   title: string;
-
-  @Field(() => Int)
-  @Column()
   capacity: number;
-
-  @Field(() => WorkshopLevel)
-  @Column({ type: 'enum', enum: WorkshopLevel })
   level: WorkshopLevel;
-
-  @Field()
-  @Column({ type: 'timestamptz' })
   startTime: Date;
-
-  @Field()
-  @Column({ type: 'timestamptz' })
   endTime: Date;
-
-  @ManyToOne(() => Conference)
-  @JoinColumn()
   conference: Conference;
-
-  @Column()
   conferenceId: string;
 }

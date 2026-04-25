@@ -30,7 +30,6 @@ export class ConferenceResolver {
     private readonly workshopService: WorkshopService,
   ) {}
 
-  // Query paginada — cualquier usuario (autenticado o no) puede listar conferencias
   @Query(() => PaginatedConferences, {
     description: 'Lista paginada de conferencias',
   })
@@ -43,7 +42,6 @@ export class ConferenceResolver {
     return this.conferenceService.findOneOrFail(id);
   }
 
-  // Solo ORGANIZER puede crear conferencias
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ORGANIZER)
   @Mutation(() => Conference, {
@@ -55,13 +53,17 @@ export class ConferenceResolver {
     return this.conferenceService.create(input);
   }
 
-  @ResolveField(() => PaginatedTalks)
-  talks(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
-    return this.talkService.findByConferenceId(conf.id, pagination);
-  }
-
-  @ResolveField(() => PaginatedWorkshops)
-  workshops(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
-    return this.workshopService.findByConferenceId(conf.id, pagination);
-  }
+  // TODO Bloque 2 — Agrega los ResolveField para las talks y workshops de una conferencia
+  //
+  // @ResolveField(() => PaginatedTalks)
+  // talks(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
+  //   return this.talkService.findByConferenceId(conf.id, pagination);
+  // }
+  //
+  // @ResolveField(() => PaginatedWorkshops)
+  // workshops(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
+  //   return this.workshopService.findByConferenceId(conf.id, pagination);
+  // }
+  //
+  // Ver WORKSHOP_GUIDE.md → "Bloque 2 — Relaciones en ConferenceResolver"
 }

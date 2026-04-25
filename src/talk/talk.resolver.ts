@@ -44,6 +44,8 @@ export class TalkResolver {
 
   @ResolveField(() => Speaker)
   speaker(@Parent() talk: Talk): Promise<Speaker> {
+    // TODO Bloque 3 — SpeakerLoader usa una implementación naive que produce N+1
+    // Implementá el DataLoader real en src/talk/speaker-loader.service.ts
     return this.speakerLoader.load(talk.speakerId);
   }
 }

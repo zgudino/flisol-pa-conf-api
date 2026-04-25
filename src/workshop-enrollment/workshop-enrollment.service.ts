@@ -59,77 +59,30 @@ export class WorkshopEnrollmentService {
     }));
   }
 
-  // Patrón B — estado inválido → NotFoundException
+  // TODO Bloque 4 — Implementa enrollInWorkshop()
+  //
+  // Patrón B — estado inválido → NotFoundException (aparece en errors[] del response)
   //   Si el workshop no existe: throw new NotFoundException(...)
   //
-  // Patrón A — flujo de negocio esperado → union type
-  //   Si ya inscripto:  return AlreadyEnrolledError
-  //   Si lleno:         return WorkshopFullError
-  //   Si ok:            crear WorkshopEnrollment en transacción → EnrollSuccess
+  // Patrón A — flujo de negocio esperado → union type (cliente maneja con inline fragments)
+  //   Si ya inscripto:            return Object.assign(new AlreadyEnrolledError(), { message: '...' })
+  //   Bonus — si no registrado:   return Object.assign(new ConferenceNotRegisteredError(), { message: '...' })
+  //   Si lleno:                   return Object.assign(new WorkshopFullError(), { message: '...' })
+  //   Si ok:                      crear WorkshopEnrollment en transacción y return EnrollSuccess
   //
-  // Bonus: verificar que el attendee esté registrado en la conferencia
+  // Tip: usá this.dataSource.transaction(async (em) => { ... })
+  //      para ejecutar todo en una sola transacción
+  //
+  // Ver WORKSHOP_GUIDE.md → "Bloque 4 — Ejercicio: enrollInWorkshop"
   async enrollInWorkshop(
-    attendeeId: string,
-    workshopId: string,
-  ): Promise<EnrollSuccess | WorkshopFullError | AlreadyEnrolledError> {
-    return this.dataSource.transaction(async (em) => {
-      // Patrón B: estado inválido → excepción (llega en errors[] con code: NOT_FOUND)
-      const workshop = await em.findOne(Workshop, {
-        where: { id: workshopId },
-        relations: ['conference'],
-      });
-      if (!workshop) {
-        throw new NotFoundException(
-          `Workshop con ID ${workshopId} no encontrado`,
-        );
-      }
-
-      // Patrón A: flujo esperado → union type (cliente lo maneja con inline fragments)
-
-      // ¿Ya está inscripto?
-      const alreadyEnrolled = await em.countBy(WorkshopEnrollment, {
-        attendee: { id: attendeeId },
-        workshop: { id: workshopId },
-      });
-      if (alreadyEnrolled > 0) {
-        return Object.assign(new AlreadyEnrolledError(), {
-          message: 'Ya estás inscripto en este workshop.',
-        });
-      }
-
-      // ¿Registrado en la conferencia? (requisito previo)
-      const registeredInConference = await em.countBy(Registration, {
-        attendee: { id: attendeeId },
-        conference: { id: workshop.conference.id },
-      });
-      if (registeredInConference === 0) {
-        return Object.assign(new ConferenceNotRegisteredError(), {
-          message:
-            'Debés registrarte en la conferencia antes de inscribirte en un workshop.',
-        });
-      }
-
-      // ¿Hay cupo?
-      const currentCount = await em.countBy(WorkshopEnrollment, {
-        workshop: { id: workshopId },
-      });
-      if (currentCount >= workshop.capacity) {
-        return Object.assign(new WorkshopFullError(), {
-          message: 'Este workshop está lleno.',
-        });
-      }
-
-      // Todo ok — inscribir
-      const enrollment = em.create(WorkshopEnrollment, {
-        attendee: { id: attendeeId },
-        workshop: { id: workshopId },
-      });
-      await em.save(enrollment);
-      const saved = await em.findOne(WorkshopEnrollment, {
-        where: { id: enrollment.id },
-        relations: ['attendee', 'workshop'],
-      });
-      return Object.assign(new EnrollSuccess(), { enrollment: saved });
-    });
+    _attendeeId: string,
+    _workshopId: string,
+  ): Promise<
+    | EnrollSuccess
+    | WorkshopFullError
+    | AlreadyEnrolledError
+    | ConferenceNotRegisteredError
+  > {
+    throw new Error('Not implemented — ver Bloque 4');
   }
 }

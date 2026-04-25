@@ -10,43 +10,23 @@ import {
   Unique,
 } from 'typeorm';
 
-@ObjectType()
-@Entity()
-@Unique(['conferenceId', 'title'])
-@Unique(['speakerId', 'startTime'])
+// TODO Bloque 2 — Agrega @ObjectType() y @Entity() a la clase
+// También agrega las constraints de unicidad con @Unique():
+//   @Unique(['conferenceId', 'title'])
+//   @Unique(['speakerId', 'startTime'])
+//
+// Luego decora cada propiedad con @Field() y @Column() (o @ManyToOne / @JoinColumn)
+// Nota: speakerId y conferenceId son FKs explícitas, necesarias para el DataLoader del Bloque 3
+//
+// Ver WORKSHOP_GUIDE.md → "Bloque 2 — Entidad Talk"
 export class Talk {
-  @Field(() => ID)
-  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
-
-  @Field()
-  @Column()
   title: string;
-
-  @Field({ nullable: true })
-  @Column({ nullable: true })
   description: string;
-
-  @Field()
-  @Column({ type: 'timestamptz' })
   startTime: Date;
-
-  @Field()
-  @Column({ type: 'timestamptz' })
   endTime: Date;
-
-  @Field(() => Speaker)
-  @ManyToOne(() => Speaker)
-  @JoinColumn()
   speaker: Speaker;
-
-  @ManyToOne(() => Conference)
-  @JoinColumn()
   conference: Conference;
-
-  @Column()
   conferenceId: string;
-
-  @Column()
   speakerId: string;
 }

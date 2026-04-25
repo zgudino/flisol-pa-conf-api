@@ -10,12 +10,34 @@
 
 ```bash
 git clone <url> && cd conf-api
+git checkout starter          # rama del taller (este archivo)
 cp .env.example .env          # completar JWT_SECRET
 docker compose up -d
 npm install
 npm run start:dev
 # http://localhost:3000/graphql
 ```
+
+---
+
+## Qué ya está provisto en la rama `starter`
+
+| Módulo | Estado |
+|--------|--------|
+| `auth/` — login, JWT, guards, decoradores | ✅ Completo |
+| `speaker/` — entidad, queries | ✅ Completo |
+| `attendee/` — entidad, queries | ✅ Completo |
+| `registration/` — `registerForConference` (demo del Bloque 4) | ✅ Completo |
+| `common/` — paginación, errores, scalars | ✅ Completo |
+| Módulos, servicios y DTOs de todos los módulos | ✅ Completo |
+| Entidad `Conference` | ⬜ Bloque 1 — Demo |
+| Entidades `Talk` y `Workshop` | ⬜ Bloque 2 — Ejercicio |
+| Relaciones en `ConferenceResolver` | ⬜ Bloque 2 — Ejercicio |
+| Campos computados en `WorkshopResolver` | ⬜ Bloque 2 — Ejercicio |
+| DataLoaders (`SpeakerLoader`, `EnrollmentCountLoader`) | ⬜ Bloque 3 — Ejercicio |
+| Mutación `enrollInWorkshop` | ⬜ Bloque 4 — Ejercicio |
+
+> Cada archivo a completar tiene un comentario `// TODO Bloque N` que indica exactamente dónde escribir.
 
 ---
 
@@ -40,7 +62,9 @@ if (count >= workshop.capacity)
 
 ---
 
-## Bloque 1 — Entidad `Conference` `(0:25 – 0:45)`
+## Bloque 1 — Entidad `Conference` — *Demo (instructor)* `(0:25 – 0:45)`
+
+> Buscá el comentario `// TODO Bloque 1` en `src/conference/conference.entity.ts` para saber dónde escribir.
 
 **Archivo:** `src/conference/conference.entity.ts`
 
@@ -83,7 +107,9 @@ query {
 
 ---
 
-## Bloque 2 — Entidades, relaciones y campos computados `(0:45 – 1:20)`
+## Bloque 2 — Entidades, relaciones y campos computados — *Ejercicio* `(0:45 – 1:20)`
+
+> Buscá los comentarios `// TODO Bloque 2` en los archivos indicados para saber dónde escribir.
 
 ### Entidad Talk — `src/talk/talk.entity.ts`
 
@@ -205,7 +231,9 @@ async isFull(@Parent() workshop: Workshop): Promise<boolean> {
 
 ---
 
-## Bloque 3 — N+1 & DataLoader `(1:20 – 1:50)`
+## Bloque 3 — N+1 & DataLoader — *Ejercicio* `(1:20 – 1:50)`
+
+> Buscá los comentarios `// TODO Bloque 3` en los archivos indicados para saber dónde escribir.
 
 ### Detectar el N+1
 
@@ -224,6 +252,19 @@ query {
 ```
 
 Con 10 talks: 11 queries. Con 50 talks: 51 queries. Ese es el N+1.
+
+### Estado inicial en la rama `starter` (naive — N+1 presente)
+
+El `SpeakerLoader` en la rama `starter` usa llamadas directas al servicio:
+
+```typescript
+// src/talk/speaker-loader.service.ts — estado inicial
+load(id: string): Promise<Speaker> {
+  return this.speakerService.findOneOrFail(id); // 1 query por speaker → N+1
+}
+```
+
+Tu tarea: reemplazá esta implementación con un `DataLoader` real (ver abajo).
 
 ### SpeakerLoader — `src/talk/speaker-loader.service.ts`
 
@@ -276,7 +317,10 @@ export class EnrollmentCountLoader {
 
 ---
 
-## Bloque 4 — Mutaciones, union errors, autenticación `(1:50 – 2:25)`
+## Bloque 4 — Mutaciones, union errors, autenticación — *Demo + Ejercicio* `(1:50 – 2:25)`
+
+> El instructor demuestra `registerForConference` (ya implementado en `src/registration/`).
+> Tu ejercicio: implementá `enrollInWorkshop` — buscá `// TODO Bloque 4` en los archivos indicados.
 
 ### Demo: registerForConference
 

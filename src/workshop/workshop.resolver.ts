@@ -40,20 +40,25 @@ export class WorkshopResolver {
     return this.workshopService.create(input);
   }
 
-  @ResolveField(() => Int)
-  async enrolledCount(@Parent() workshop: Workshop): Promise<number> {
-    return this.enrollmentService.countByWorkshopId(workshop.id);
-  }
-
-  @ResolveField(() => Int)
-  async availableSeats(@Parent() workshop: Workshop): Promise<number> {
-    const count = await this.enrollmentService.countByWorkshopId(workshop.id);
-    return workshop.capacity - count;
-  }
-
-  @ResolveField(() => Boolean)
-  async isFull(@Parent() workshop: Workshop): Promise<boolean> {
-    const count = await this.enrollmentService.countByWorkshopId(workshop.id);
-    return count >= workshop.capacity;
-  }
+  // TODO Bloque 2 — Agrega los campos computados del Workshop
+  // Usá this.enrollmentService.countByWorkshopId(workshop.id) para obtener el conteo
+  //
+  // @ResolveField(() => Int)
+  // async enrolledCount(@Parent() workshop: Workshop): Promise<number> {
+  //   return this.enrollmentService.countByWorkshopId(workshop.id);
+  // }
+  //
+  // @ResolveField(() => Int)
+  // async availableSeats(@Parent() workshop: Workshop): Promise<number> {
+  //   const count = await this.enrollmentService.countByWorkshopId(workshop.id);
+  //   return workshop.capacity - count;
+  // }
+  //
+  // @ResolveField(() => Boolean)
+  // async isFull(@Parent() workshop: Workshop): Promise<boolean> {
+  //   const count = await this.enrollmentService.countByWorkshopId(workshop.id);
+  //   return count >= workshop.capacity;
+  // }
+  //
+  // Ver WORKSHOP_GUIDE.md → "Bloque 2 — Campos computados en WorkshopResolver"
 }
