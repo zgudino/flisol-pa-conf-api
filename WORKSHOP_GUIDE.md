@@ -49,11 +49,11 @@ if (count >= workshop.capacity)
 @Entity()
 export class Conference {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
-  @Column()
+  @Column({ unique: true })
   name: string;
 
   @Field()
@@ -90,9 +90,11 @@ query {
 ```typescript
 @ObjectType()
 @Entity()
+@Unique(['conferenceId', 'title'])
+@Unique(['speakerId', 'startTime'])
 export class Talk {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
@@ -134,9 +136,10 @@ export class Talk {
 ```typescript
 @ObjectType()
 @Entity()
+@Unique(['title', 'conferenceId'])
 export class Workshop {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
@@ -171,12 +174,12 @@ export class Workshop {
 ### Relaciones en ConferenceResolver
 
 ```typescript
-@ResolveField()
+@ResolveField(() => PaginatedTalks)
 talks(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
   return this.talkService.findByConferenceId(conf.id, pagination);
 }
 
-@ResolveField()
+@ResolveField(() => PaginatedWorkshops)
 workshops(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
   return this.workshopService.findByConferenceId(conf.id, pagination);
 }
@@ -232,11 +235,11 @@ Con 10 talks: 11 queries. Con 50 talks: 51 queries. Ese es el N+1.
 export class SpeakerLoader {
   loader: DataLoader<string, Speaker>;
 
-  constructor(private readonly speakerService: SpeakerService) {
+  constructor(speakerService: SpeakerService) {
     this.loader = new DataLoader(async (ids: readonly string[]) => {
       const speakers = await speakerService.findByIds([...ids]);
       // IMPORTANTE: retornar en el MISMO orden que los ids de entrada
-      return ids.map(id => speakers.find(s => s.id === id));
+      return ids.map((id) => speakers.find((s) => s.id === id)!);
     });
   }
 
@@ -261,10 +264,12 @@ speaker(@Parent() talk: Talk): Promise<Speaker> {
 export class EnrollmentCountLoader {
   loader: DataLoader<string, number>;
 
-  constructor(private readonly enrollmentService: WorkshopEnrollmentService) {
+  constructor(enrollmentService: WorkshopEnrollmentService) {
     this.loader = new DataLoader(async (ids: readonly string[]) => {
       const counts = await enrollmentService.countsByWorkshopIds([...ids]);
-      return ids.map(id => counts.find(c => c.workshopId === id)?.count ?? 0);
+      return ids.map(
+        (id) => counts.find((c) => c.workshopId === id)?.count ?? 0,
+      );
     });
   }
 
@@ -286,19 +291,38 @@ async registerForConference(attendeeId: string, conferenceId: string) {
   return this.dataSource.transaction(async (em) => {
     // Patrón B: no existe → excepción
     const conference = await em.findOneBy(Conference, { id: conferenceId });
-    if (!conference) throw new NotFoundException(`Conferencia ${conferenceId} no encontrada`);
+    if (!conference)
+      throw new NotFoundException(`Conferencia ${conferenceId} no encontrada`);
+
+    // Patrón A: ya registrado → union type
+    const alreadyRegistered = await em.countBy(Registration, {
+      attendee: { id: attendeeId },
+      conference: { id: conferenceId },
+    });
+    if (alreadyRegistered > 0)
+      return Object.assign(new AlreadyRegisteredError(), {
+        message: 'Ya estás inscrito en esta conferencia.',
+      });
 
     // Patrón A: llena → union type
-    const count = await em.countBy(Registration, { conference: { id: conferenceId } });
+    const count = await em.countBy(Registration, {
+      conference: { id: conferenceId },
+    });
     if (count >= conference.capacity)
-      return Object.assign(new CapacityFullError(), { message: 'La conferencia está llena.' });
+      return Object.assign(new CapacityFullError(), {
+        message: 'La conferencia está llena.',
+      });
 
     const registration = em.create(Registration, {
-      attendee:   { id: attendeeId },
+      attendee: { id: attendeeId },
       conference: { id: conferenceId },
     });
     await em.save(registration);
-    return Object.assign(new RegistrationSuccess(), { registration });
+    const saved = await em.findOne(Registration, {
+      where: { id: registration.id },
+      relations: ['attendee', 'conference'],
+    });
+    return Object.assign(new RegistrationSuccess(), { registration: saved });
   });
 }
 ```
@@ -308,10 +332,12 @@ Union type y mutación con `@CurrentUser()`:
 // registration.resolver.ts
 export const RegisterForConferenceResult = createUnionType({
   name: 'RegisterForConferenceResult',
-  types: () => [RegistrationSuccess, CapacityFullError] as const,
+  types: () =>
+    [RegistrationSuccess, AlreadyRegisteredError, CapacityFullError] as const,
   resolveType(value) {
     if (value instanceof RegistrationSuccess) return RegistrationSuccess;
-    if (value instanceof CapacityFullError)   return CapacityFullError;
+    if (value instanceof AlreadyRegisteredError) return AlreadyRegisteredError;
+    if (value instanceof CapacityFullError) return CapacityFullError;
   },
 });
 
@@ -337,9 +363,10 @@ Implementar en `workshop-enrollment.service.ts` y `workshop-enrollment.resolver.
 ```graphql
 mutation {
   enrollInWorkshop(input: { workshopId: "..." }) {
-    ... on EnrollSuccess        { enrollment { id enrolledAt } }
-    ... on WorkshopFullError    { message }
-    ... on AlreadyEnrolledError { message }
+    ... on EnrollSuccess                { enrollment { id enrolledAt } }
+    ... on WorkshopFullError            { message }
+    ... on AlreadyEnrolledError         { message }
+    ... on ConferenceNotRegisteredError { message }
   }
 }
 ```
