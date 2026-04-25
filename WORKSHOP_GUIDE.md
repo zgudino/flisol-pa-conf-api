@@ -10,34 +10,12 @@
 
 ```bash
 git clone <url> && cd conf-api
-git checkout starter          # rama del taller (este archivo)
 cp .env.example .env          # completar JWT_SECRET
 docker compose up -d
 npm install
 npm run start:dev
 # http://localhost:3000/graphql
 ```
-
----
-
-## Qué ya está provisto en la rama `starter`
-
-| Módulo | Estado |
-|--------|--------|
-| `auth/` — login, JWT, guards, decoradores | ✅ Completo |
-| `speaker/` — entidad, queries | ✅ Completo |
-| `attendee/` — entidad, queries | ✅ Completo |
-| `registration/` — `registerForConference` (demo del Bloque 4) | ✅ Completo |
-| `common/` — paginación, errores, scalars | ✅ Completo |
-| Módulos, servicios y DTOs de todos los módulos | ✅ Completo |
-| Entidad `Conference` | ⬜ Bloque 1 — Demo |
-| Entidades `Talk` y `Workshop` | ⬜ Bloque 2 — Ejercicio |
-| Relaciones en `ConferenceResolver` | ⬜ Bloque 2 — Ejercicio |
-| Campos computados en `WorkshopResolver` | ⬜ Bloque 2 — Ejercicio |
-| DataLoaders (`SpeakerLoader`, `EnrollmentCountLoader`) | ⬜ Bloque 3 — Ejercicio |
-| Mutación `enrollInWorkshop` | ⬜ Bloque 4 — Ejercicio |
-
-> Cada archivo a completar tiene un comentario `// TODO Bloque N` que indica exactamente dónde escribir.
 
 ---
 
@@ -62,9 +40,7 @@ if (count >= workshop.capacity)
 
 ---
 
-## Bloque 1 — Entidad `Conference` — *Demo (instructor)* `(0:25 – 0:45)`
-
-> Buscá el comentario `// TODO Bloque 1` en `src/conference/conference.entity.ts` para saber dónde escribir.
+## Bloque 1 — Entidad `Conference` `(0:25 – 0:45)`
 
 **Archivo:** `src/conference/conference.entity.ts`
 
@@ -73,11 +49,11 @@ if (count >= workshop.capacity)
 @Entity()
 export class Conference {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
-  @Column()
+  @Column({ unique: true })
   name: string;
 
   @Field()
@@ -107,18 +83,18 @@ query {
 
 ---
 
-## Bloque 2 — Entidades, relaciones y campos computados — *Ejercicio* `(0:45 – 1:20)`
-
-> Buscá los comentarios `// TODO Bloque 2` en los archivos indicados para saber dónde escribir.
+## Bloque 2 — Entidades, relaciones y campos computados `(0:45 – 1:20)`
 
 ### Entidad Talk — `src/talk/talk.entity.ts`
 
 ```typescript
 @ObjectType()
 @Entity()
+@Unique(['conferenceId', 'title'])
+@Unique(['speakerId', 'startTime'])
 export class Talk {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
@@ -160,9 +136,10 @@ export class Talk {
 ```typescript
 @ObjectType()
 @Entity()
+@Unique(['title', 'conferenceId'])
 export class Workshop {
   @Field(() => ID)
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
   @Field()
@@ -197,12 +174,12 @@ export class Workshop {
 ### Relaciones en ConferenceResolver
 
 ```typescript
-@ResolveField()
+@ResolveField(() => PaginatedTalks)
 talks(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
   return this.talkService.findByConferenceId(conf.id, pagination);
 }
 
-@ResolveField()
+@ResolveField(() => PaginatedWorkshops)
 workshops(@Parent() conf: Conference, @Args() pagination: PaginationArgs) {
   return this.workshopService.findByConferenceId(conf.id, pagination);
 }
@@ -231,9 +208,7 @@ async isFull(@Parent() workshop: Workshop): Promise<boolean> {
 
 ---
 
-## Bloque 3 — N+1 & DataLoader — *Ejercicio* `(1:20 – 1:50)`
-
-> Buscá los comentarios `// TODO Bloque 3` en los archivos indicados para saber dónde escribir.
+## Bloque 3 — N+1 & DataLoader `(1:20 – 1:50)`
 
 ### Detectar el N+1
 
@@ -253,19 +228,6 @@ query {
 
 Con 10 talks: 11 queries. Con 50 talks: 51 queries. Ese es el N+1.
 
-### Estado inicial en la rama `starter` (naive — N+1 presente)
-
-El `SpeakerLoader` en la rama `starter` usa llamadas directas al servicio:
-
-```typescript
-// src/talk/speaker-loader.service.ts — estado inicial
-load(id: string): Promise<Speaker> {
-  return this.speakerService.findOneOrFail(id); // 1 query por speaker → N+1
-}
-```
-
-Tu tarea: reemplazá esta implementación con un `DataLoader` real (ver abajo).
-
 ### SpeakerLoader — `src/talk/speaker-loader.service.ts`
 
 ```typescript
@@ -273,11 +235,11 @@ Tu tarea: reemplazá esta implementación con un `DataLoader` real (ver abajo).
 export class SpeakerLoader {
   loader: DataLoader<string, Speaker>;
 
-  constructor(private readonly speakerService: SpeakerService) {
+  constructor(speakerService: SpeakerService) {
     this.loader = new DataLoader(async (ids: readonly string[]) => {
       const speakers = await speakerService.findByIds([...ids]);
       // IMPORTANTE: retornar en el MISMO orden que los ids de entrada
-      return ids.map(id => speakers.find(s => s.id === id));
+      return ids.map((id) => speakers.find((s) => s.id === id)!);
     });
   }
 
@@ -302,10 +264,12 @@ speaker(@Parent() talk: Talk): Promise<Speaker> {
 export class EnrollmentCountLoader {
   loader: DataLoader<string, number>;
 
-  constructor(private readonly enrollmentService: WorkshopEnrollmentService) {
+  constructor(enrollmentService: WorkshopEnrollmentService) {
     this.loader = new DataLoader(async (ids: readonly string[]) => {
       const counts = await enrollmentService.countsByWorkshopIds([...ids]);
-      return ids.map(id => counts.find(c => c.workshopId === id)?.count ?? 0);
+      return ids.map(
+        (id) => counts.find((c) => c.workshopId === id)?.count ?? 0,
+      );
     });
   }
 
@@ -317,10 +281,7 @@ export class EnrollmentCountLoader {
 
 ---
 
-## Bloque 4 — Mutaciones, union errors, autenticación — *Demo + Ejercicio* `(1:50 – 2:25)`
-
-> El instructor demuestra `registerForConference` (ya implementado en `src/registration/`).
-> Tu ejercicio: implementá `enrollInWorkshop` — buscá `// TODO Bloque 4` en los archivos indicados.
+## Bloque 4 — Mutaciones, union errors, autenticación `(1:50 – 2:25)`
 
 ### Demo: registerForConference
 
@@ -330,19 +291,38 @@ async registerForConference(attendeeId: string, conferenceId: string) {
   return this.dataSource.transaction(async (em) => {
     // Patrón B: no existe → excepción
     const conference = await em.findOneBy(Conference, { id: conferenceId });
-    if (!conference) throw new NotFoundException(`Conferencia ${conferenceId} no encontrada`);
+    if (!conference)
+      throw new NotFoundException(`Conferencia ${conferenceId} no encontrada`);
+
+    // Patrón A: ya registrado → union type
+    const alreadyRegistered = await em.countBy(Registration, {
+      attendee: { id: attendeeId },
+      conference: { id: conferenceId },
+    });
+    if (alreadyRegistered > 0)
+      return Object.assign(new AlreadyRegisteredError(), {
+        message: 'Ya estás inscrito en esta conferencia.',
+      });
 
     // Patrón A: llena → union type
-    const count = await em.countBy(Registration, { conference: { id: conferenceId } });
+    const count = await em.countBy(Registration, {
+      conference: { id: conferenceId },
+    });
     if (count >= conference.capacity)
-      return Object.assign(new CapacityFullError(), { message: 'La conferencia está llena.' });
+      return Object.assign(new CapacityFullError(), {
+        message: 'La conferencia está llena.',
+      });
 
     const registration = em.create(Registration, {
-      attendee:   { id: attendeeId },
+      attendee: { id: attendeeId },
       conference: { id: conferenceId },
     });
     await em.save(registration);
-    return Object.assign(new RegistrationSuccess(), { registration });
+    const saved = await em.findOne(Registration, {
+      where: { id: registration.id },
+      relations: ['attendee', 'conference'],
+    });
+    return Object.assign(new RegistrationSuccess(), { registration: saved });
   });
 }
 ```
@@ -352,10 +332,12 @@ Union type y mutación con `@CurrentUser()`:
 // registration.resolver.ts
 export const RegisterForConferenceResult = createUnionType({
   name: 'RegisterForConferenceResult',
-  types: () => [RegistrationSuccess, CapacityFullError] as const,
+  types: () =>
+    [RegistrationSuccess, AlreadyRegisteredError, CapacityFullError] as const,
   resolveType(value) {
     if (value instanceof RegistrationSuccess) return RegistrationSuccess;
-    if (value instanceof CapacityFullError)   return CapacityFullError;
+    if (value instanceof AlreadyRegisteredError) return AlreadyRegisteredError;
+    if (value instanceof CapacityFullError) return CapacityFullError;
   },
 });
 
@@ -381,9 +363,10 @@ Implementar en `workshop-enrollment.service.ts` y `workshop-enrollment.resolver.
 ```graphql
 mutation {
   enrollInWorkshop(input: { workshopId: "..." }) {
-    ... on EnrollSuccess        { enrollment { id enrolledAt } }
-    ... on WorkshopFullError    { message }
-    ... on AlreadyEnrolledError { message }
+    ... on EnrollSuccess                { enrollment { id enrolledAt } }
+    ... on WorkshopFullError            { message }
+    ... on AlreadyEnrolledError         { message }
+    ... on ConferenceNotRegisteredError { message }
   }
 }
 ```
