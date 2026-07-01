@@ -10,7 +10,7 @@
 
 ```bash
 git clone <url> && cd conf-api
-cp .env.example .env          # completar JWT_SECRET
+cp .env.sample .env           # completar JWT_SECRET
 docker compose up -d
 npm install
 npm run start:dev
