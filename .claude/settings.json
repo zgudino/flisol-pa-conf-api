@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(jq -r '.tool_input.file_path // empty'); base=$(basename -- \"$file\" 2>/dev/null); case \"$base\" in .env|.env.local|.env.production|.env.development|.env.test) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Editing .env files is blocked to protect secrets (JWT_SECRET, DB credentials). Edit .env.sample instead.\"}}';; esac"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty'); case \"$file\" in *.ts) npx prettier --write \"$file\" >/dev/null 2>&1; npx eslint \"$file\" --fix >/dev/null 2>&1;; esac; true",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
